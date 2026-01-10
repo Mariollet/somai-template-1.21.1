@@ -1,0 +1,13 @@
+{
+  "itemGroup.somai": "Example Mod Tab",
+  "block.somai.example_block": "Example Block",
+  "item.somai.example_item": "Example Item",
+
+  "somai.configuration.title": "SomAI Configs",
+  "somai.configuration.section.somai.common.toml": "SomAI Configs",
+  "somai.configuration.section.somai.common.toml.title": "SomAI Configs",
+  "somai.configuration.items": "Item List",
+  "somai.configuration.logDirtBlock": "Log Dirt Block",
+  "somai.configuration.magicNumberIntroduction": "Magic Number Text",
+  "somai.configuration.magicNumber": "Magic Number"
+}
