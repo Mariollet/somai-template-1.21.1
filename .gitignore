@@ -23,4 +23,7 @@ run
 runs
 run-data
 
+# local jars (dev-only)
+libs/*.jar
+
 repo

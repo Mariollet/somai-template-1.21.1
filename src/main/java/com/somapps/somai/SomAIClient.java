@@ -7,13 +7,17 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
+
+import com.somapps.somai.client.WhistleControlScreen;
 
 // This class will not load on dedicated servers. Accessing client side code from here is safe.
 @Mod(value = SomAI.MODID, dist = Dist.CLIENT)
 // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
-@EventBusSubscriber(modid = SomAI.MODID, value = Dist.CLIENT)
+@EventBusSubscriber(modid = SomAI.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 public class SomAIClient {
     public SomAIClient(ModContainer container) {
         // Allows NeoForge to create a config screen for this mod's configs.
@@ -27,5 +31,15 @@ public class SomAIClient {
         // Some client setup code
         SomAI.LOGGER.info("HELLO FROM CLIENT SETUP");
         SomAI.LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
+
+    }
+
+    @SubscribeEvent
+    static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerEntityRenderer(SomAI.HUMAN_COMPANION.get(), HumanCompanionRenderer::new);
+    }
+    @SubscribeEvent
+    static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
+        event.register(SomAI.WHISTLE_CONTROL_MENU.get(), WhistleControlScreen::new);
     }
 }

@@ -18,6 +18,19 @@ group = mod_group_id
 
 repositories {
     // Add here additional repositories if required by some of the dependencies below.
+
+    // Architectury Maven.
+    maven {
+        url = "https://maven.architectury.dev/"
+    }
+
+    // CurseForge Maven proxy (CurseMaven) for mod dependencies.
+    maven {
+        url = "https://www.cursemaven.com"
+        content {
+            includeGroup "curse.maven"
+        }
+    }
 }
 
 base {
@@ -96,6 +109,14 @@ dependencies {
     // For all intends and purposes: You can treat this dependency as if it is a normal library you would use.
     implementation "net.neoforged:neoforge:${neo_version}"
 
+    // PlayerEngine (NeoForge).
+    // NOTE: CurseForge's website tags this file as MC 1.21.10, but the mod itself declares
+    // a Minecraft version range starting at 1.21.1 in its neoforge.mods.toml.
+    implementation "curse.maven:playerengine-1322604:7371353"
+
+    // PlayerEngine requires Architectury API; pin a 1.21(.1)-compatible version.
+    localRuntime "dev.architectury:architectury-neoforge:13.0.8"
+
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
     // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"
@@ -157,6 +178,105 @@ publishing {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+
+// --- Dev tooling: PlayerEngine API dump (requires libs/playerengine-dev.jar) ---
+tasks.register('dumpPlayerEngineApi') {
+    group = 'help'
+    description = 'Dumps PlayerEngine class inventory for mapping whistle automaton modes to real features. Requires libs/playerengine-dev.jar.'
+
+    // Dev-only introspection task. Keep it from failing the build under configuration cache.
+    notCompatibleWithConfigurationCache('Dev-only jar introspection.')
+
+    def jarPath = layout.projectDirectory.file('libs/playerengine-dev.jar')
+    // Capture property at configuration time to avoid configuration-cache violations.
+    def overrideJarProp = (project.findProperty('playerEngineJar') != null) ? String.valueOf(project.findProperty('playerEngineJar')) : null
+
+    doLast {
+        File jarFile = null
+
+        // 1) Explicit override: -PplayerEngineJar="C:\\path\\to\\playerengine.jar"
+        if (overrideJarProp != null) {
+            jarFile = new File(overrideJarProp)
+        }
+
+        // 2) Workspace copy: libs/playerengine-dev.jar
+        if (jarFile == null || !jarFile.exists()) {
+            def local = jarPath.asFile
+            if (local.exists()) {
+                jarFile = local
+            }
+        }
+
+        // 3) Auto-detect from Gradle cache (matches our pinned CurseMaven coords)
+        if (jarFile == null || !jarFile.exists()) {
+            def home = new File(System.getProperty('user.home'))
+            def base = new File(home, '.gradle/caches/modules-2/files-2.1/curse.maven/playerengine-1322604/7371353')
+            if (base.exists()) {
+                try {
+                    def found = java.nio.file.Files.walk(base.toPath())
+                            .filter { java.nio.file.Files.isRegularFile(it) }
+                            .filter { it.fileName.toString() == 'playerengine-1322604-7371353.jar' }
+                            .findFirst()
+                    if (found.isPresent()) {
+                        jarFile = found.get().toFile()
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+
+        if (jarFile == null || !jarFile.exists()) {
+            println "Missing PlayerEngine jar. Provide one of:"
+            println "  - Copy to ${jarPath.asFile} (see libs/README.md)"
+            println "  - Or run: .\\gradlew dumpPlayerEngineApi -PplayerEngineJar=\"C:\\\\path\\\\to\\\\playerengine.jar\""
+            return
+        }
+
+        println "=== PlayerEngine jar: ${jarFile.name} (${jarFile.length()} bytes) ==="
+
+        def entries = []
+        def zip = new java.util.zip.ZipFile(jarFile)
+        try {
+            def e = zip.entries()
+            while (e.hasMoreElements()) {
+                def entry = e.nextElement()
+                def name = entry.getName()
+                if (name != null && name.endsWith('.class')) {
+                    entries.add(name)
+                }
+            }
+        } finally {
+            zip.close()
+        }
+
+        def toClassName = { String p ->
+            if (p == null) return null
+            def rel = p.replace('\\', '/')
+            if (rel.startsWith('/')) rel = rel.substring(1)
+            if (!rel.startsWith('com/')) return null
+            if (!rel.endsWith('.class')) return null
+            return rel.substring(0, rel.length() - 6).replace('/', '.')
+        }
+
+        def classes = entries.collect(toClassName).findAll { it != null }
+
+        def sections = [
+                'Automaton API' : { it.startsWith('com.player2.playerengine.automaton.api.') },
+                'Entity API'    : { it.startsWith('com.player2.playerengine.automaton.api.entity.') },
+                'Commands'      : { it.startsWith('com.player2.playerengine.commands.') },
+                'Tasks'         : { it.startsWith('com.player2.playerengine.tasks.') },
+                'Control'       : { it.startsWith('com.player2.playerengine.control.') },
+        ]
+
+        sections.each { name, pred ->
+            println "\n--- ${name} ---"
+            classes.findAll(pred).sort().each { println it }
+        }
+
+        println "\n=== Suggested next step ==="
+        println "Paste the 'Commands' section back into chat so we can map whistle modes to the actual supported command names for your version."
+    }
 }
 
 // IDEA no longer automatically downloads sources/javadoc jars for dependencies, so we need to explicitly enable the behavior.

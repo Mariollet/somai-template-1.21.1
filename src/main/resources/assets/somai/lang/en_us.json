@@ -1,7 +1,8 @@
 {
-  "itemGroup.somai": "Example Mod Tab",
-  "block.somai.example_block": "Example Block",
-  "item.somai.example_item": "Example Item",
+  "itemGroup.somai": "SomAI",
+
+  "item.somai.companion_whistle": "Companion Whistle",
+  "entity.somai.human_companion": "Human Companion",
 
   "somai.configuration.title": "SomAI Configs",
   "somai.configuration.section.somai.common.toml": "SomAI Configs",
